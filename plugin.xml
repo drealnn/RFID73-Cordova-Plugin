@@ -53,6 +53,7 @@
         <source-file src="src/android/General.java" target-dir="src/com/rfid72/app" />
 		<source-file src="src/android/SoundLoader.java" target-dir="src/com/rfid72/app" />
 		
+		<framework src="src/android/libs/rfid73api.gradle" custom="true" type="gradleReference" />
 		<lib-file src="src/android/libs/DeviceAPI20220518.aar" />
 
         <!-- <lib-file src="src/android/libs/cw-deviceapi20190815.jar" />
