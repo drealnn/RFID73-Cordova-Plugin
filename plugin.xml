@@ -52,13 +52,15 @@
 	    <source-file src="src/android/Barcode.java" target-dir="src/com/rfid72/app" />
         <source-file src="src/android/General.java" target-dir="src/com/rfid72/app" />
 		<source-file src="src/android/SoundLoader.java" target-dir="src/com/rfid72/app" />
+		
+		<lib-file src="src/android/libs/DeviceAPI20220518.aar" />
 
-        <lib-file src="src/android/libs/cw-deviceapi20190815.jar" />
+        <!-- <lib-file src="src/android/libs/cw-deviceapi20190815.jar" />
 	    <lib-file src="src/android/libs/IGLBarDecoder.jar" />
         <lib-file src="src/android/libs/jxl.jar" />
-        <lib-file src="src/android/libs/xUtils-2.5.5.jar" />
+        <lib-file src="src/android/libs/xUtils-2.5.5.jar" /> -->
 		
-		<source-file src="src/android/libs/build-extras.gradle" target-dir="src/.." />
+		<!-- <source-file src="src/android/libs/build-extras.gradle" target-dir="src/.." />
       
 		<source-file src="src/android/libs/arm64-v8a/libbarcodereader44.so" target-dir="libs/arm64-v8a" />
 		<source-file src="src/android/libs/arm64-v8a/libIAL.so" target-dir="libs/arm64-v8a" />
@@ -93,7 +95,7 @@
 		<source-file src="src/android/libs/armeabi-v7a/libHSMDecoderAPI.so" target-dir="libs/armeabi-v7a" />
 		<source-file src="src/android/libs/armeabi-v7a/libHsmKil.so" target-dir="libs/armeabi-v7a" />
 		<source-file src="src/android/libs/armeabi-v7a/libIGLBarDecoder.so" target-dir="libs/armeabi-v7a" />
-		<source-file src="src/android/libs/armeabi-v7a/libIGLImageAE.so" target-dir="libs/armeabi-v7a" />
+		<source-file src="src/android/libs/armeabi-v7a/libIGLImageAE.so" target-dir="libs/armeabi-v7a" /> -->
 
 
         <resource-file src="src/android/res/raw/barcodebeep.ogg" target="res/raw/barcodebeep.ogg" />

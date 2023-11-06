@@ -1,6 +1,9 @@
 package com.rfid72.app;
 
 import com.rscja.deviceapi.RFIDWithUHF;
+import com.rscja.deviceapi.RFIDWithUHFUART;
+import com.rscja.deviceapi.entity.UHFTAGInfo;
+import com.rscja.deviceapi.interfaces.IUHF;
 
 
 import android.media.SoundPool;
@@ -33,7 +36,7 @@ public class Rfid extends CordovaPlugin {
 
 private static final String TAG = "RFID Native"; 
 
-protected RFIDWithUHF mReader;
+protected RFIDWithUHFUART mReader;
 private PowerManager.WakeLock mWakeLock = null;
 private SoundPool mSoundPool;
 private int mBeepSuccess;
@@ -68,7 +71,7 @@ public boolean execute(String action, JSONArray args, CallbackContext callbackCo
     // lifecycle functions //
     if (action.equals("initialize")){
 		try {
-			mReader = RFIDWithUHF.getInstance();
+			mReader = RFIDWithUHFUART.getInstance();
 			if (mReader != null) {
 				Boolean status = mReader.init();
 				if (status){
@@ -205,8 +208,9 @@ public boolean execute(String action, JSONArray args, CallbackContext callbackCo
     }
     else if (action.equals("start_readSingle"))
     {
-        String strUII = mReader.inventorySingleTag();
-        String strEPC = mReader.convertUiiToEPC(strUII);
+
+        UHFTAGInfo uhftagInfo = mReader.inventorySingleTag();
+        String strEPC = uhftagInfo.getEPC();//mReader.convertUiiToEPC(strUII);
         Message msg = handler.obtainMessage();
         msg.obj = strEPC;
         handler.sendMessage(msg);
@@ -235,7 +239,7 @@ public boolean execute(String action, JSONArray args, CallbackContext callbackCo
         try {
             JSONObject params = args.getJSONObject(0);
             // EPC Bank
-            RFIDWithUHF.BankEnum bank = params.isNull("bankType") ? RFIDWithUHF.BankEnum.valueOf("UII") : params.getString("bankType").equalsIgnoreCase("EPC") ? RFIDWithUHF.BankEnum.valueOf("UII") : null;
+            int bank = params.isNull("bankType") ? IUHF.Bank_EPC : params.getString("bankType").equalsIgnoreCase("EPC") ? IUHF.Bank_EPC : 0;
             // point 2 bytes ahead to skip header
             int offset = params.isNull("offset") ? 2 :  params.getInt("offset");
             // write 6 words (2 bytes per word, 96 bits)
@@ -244,8 +248,11 @@ public boolean execute(String action, JSONArray args, CallbackContext callbackCo
             String password =  params.isNull("password") ? "00000000" : params.getString("password");
             // data to write
             String data =  params.isNull("data") ? "" : params.getString("data");
-
-            boolean r =  mReader.writeData_Ex(password,
+            /*boolean r =  mReader.writeData_Ex(password,
+                    bank,
+                    offset,
+                    length, data);*/
+            boolean r = mReader.writeData(password,
                     bank,
                     offset,
                     length, data);
@@ -279,7 +286,7 @@ public boolean execute(String action, JSONArray args, CallbackContext callbackCo
     }
     else if (action.equals("is_running"))
     {
-        callbackContext.success(!(mReader.getReadMode() > -1)+"");
+        callbackContext.success("false");
         /*final CallbackContext myCallbackContext = callbackContext;
         cordova.getThreadPool().execute(new Runnable() {
             public void run() {
@@ -311,7 +318,7 @@ public void initialize(CordovaInterface cordova, CordovaWebView webView) {
 	    this.ctx = cordova.getActivity().getApplicationContext();
 		SoundLoader.getInstance(ctx);
         handler = new ReadTagHandler();
-		mReader = RFIDWithUHF.getInstance();
+		mReader = RFIDWithUHFUART.getInstance();
 		if (mReader != null) {
 			boolean status = mReader.init();
 			if (status){
@@ -406,7 +413,7 @@ private void startInventory(CallbackContext callbackContext, JSONObject options)
     }
 	try {
 		if (!loopFlag){
-			if (mReader.startInventoryTag(0,0)) {
+			if (mReader.startInventoryTag()) {
 				loopFlag = true;
 				Log.e(TAG, ""+optionsMap.get("returnDistinct"));
 				cordova.getThreadPool().execute(new TagThread(optionsMap));
@@ -485,12 +492,12 @@ class TagThread implements Runnable {
     }
 
     public void run() {
-        String[] res;
+        UHFTAGInfo res;
         while (loopFlag) {
             res = mReader.readTagFromBuffer();
             if (res != null) {
-                String epc = mReader.convertUiiToEPC(res[1]);
-                String rssi = res[2];
+                String epc = res.getEPC();
+                String rssi = res.getRssi();
                 if (this.isEnabled("returnDistinct")){
                     if (this.epcRssiMap.get(epc) == null){
                         if (!this.isEnabled("returnOnStop")) {
@@ -503,7 +510,7 @@ class TagThread implements Runnable {
                     }
                 }
                 this.epcRssiMap.put(epc, rssi);
-                Log.i("data","EPC:"+res[1]);
+                Log.i("data","EPC:"+epc);
             }
         } // end while
 		Log.e(TAG, "Thread loop finished");
