@@ -8,7 +8,10 @@ import android.os.Vibrator;
 import android.util.Log;
 import android.view.View;
 
-import com.zebra.adc.decoder.Barcode2DWithSoft;
+import com.rscja.barcode.BarcodeDecoder;
+import com.rscja.barcode.BarcodeFactory;
+import com.rscja.barcode.BarcodeUtility;
+import com.rscja.deviceapi.entity.BarcodeEntity;
 
 import org.apache.cordova.CordovaPlugin;
 import org.apache.cordova.CallbackContext;
@@ -26,7 +29,7 @@ public class Barcode extends CordovaPlugin {
 
 private static final String TAG = "MainActivity";
 
-private Barcode2DWithSoft mScanner =null;
+private BarcodeDecoder mScanner =null;
 private PowerManager.WakeLock mWakeLock = null;
 private SoundPool mSoundPool;
 private int mBeepSuccess;
@@ -65,6 +68,8 @@ public boolean execute(String action, JSONArray args, CallbackContext callbackCo
     }
     else if (action.equals("sleep_scanner")){
         Log.i(TAG, "+- sleep scanner");
+        mScanner.stopScan();
+        mScanner.close();
         /*if(mScanner != null) {
             ATScanManager.sleep();
         }*/
@@ -73,7 +78,7 @@ public boolean execute(String action, JSONArray args, CallbackContext callbackCo
     else if (action.equals("scanner_startDecode")){
         Log.i(TAG, "++Start Decode");
         //mScanResult = null;
-        this.mScanner.scan();
+        this.mScanner.startScan();
         Log.i(TAG, "--Start Decode");
         
         return true;
@@ -117,32 +122,45 @@ public boolean execute(String action, JSONArray args, CallbackContext callbackCo
     }
     else if(action.equalsIgnoreCase("register_decode")){
             this.getDecode_callback = callbackContext;
+            if (!mScanner.isOpen()){
+                mScanner.open(ctx);
+            }
             return true;
     }
     return false;
 }
 
-public Barcode2DWithSoft.ScanCallback  ScanBack = new Barcode2DWithSoft.ScanCallback(){
+public BarcodeDecoder.DecodeCallback  ScanBack = new BarcodeDecoder.DecodeCallback(){
     @Override
-    public void onScanComplete(int i, int length, byte[] bytes) {
+    public void onDecodeComplete(BarcodeEntity barcodeEntity) {
         PluginResult result;
-        if (length < 1) {
-            String errorMessage = "";
-            if (length == -1) {
-                errorMessage = "Scan Cancel";
-            } else if (length == 0) {
-                errorMessage = "Scan timeout";
-            } else {
-                errorMessage = "Scan fail";
-            }
+        if(barcodeEntity.getResultCode() == BarcodeDecoder.DECODE_SUCCESS){
+            String barcode = barcodeEntity.getBarcodeData();
+            //result = new PluginResult(PluginResult.Status.OK, new JSONObject("{\'type\': \'N/A\' , \'barcode\': \'" + barcode + "\' }"));
+            result = new PluginResult(PluginResult.Status.OK, barcode);
+            SoundLoader.getInstance(ctx).playSuccess();
+        } else {
+            String errorMessage = "Scan fail";
             Log.e(TAG, errorMessage);
             result = new PluginResult(PluginResult.Status.ERROR, errorMessage);
-        } else {
-            String barcode = new String(bytes, 0, length, StandardCharsets.US_ASCII);
-            //result = new PluginResult(PluginResult.Status.OK, new JSONObject("{\'type\': \'N/A\' , \'barcode\': \'" + barcode + "\' }"));
-			result = new PluginResult(PluginResult.Status.OK, barcode);
-            SoundLoader.getInstance(ctx).playSuccess();
         }
+//        if (length < 1) {
+//            String errorMessage = "";
+//            if (length == -1) {
+//                errorMessage = "Scan Cancel";
+//            } else if (length == 0) {
+//                errorMessage = "Scan timeout";
+//            } else {
+//                errorMessage = "Scan fail";
+//            }
+//            Log.e(TAG, errorMessage);
+//            result = new PluginResult(PluginResult.Status.ERROR, errorMessage);
+//        } else {
+//            String barcode = new String(bytes, 0, length, StandardCharsets.US_ASCII);
+//            //result = new PluginResult(PluginResult.Status.OK, new JSONObject("{\'type\': \'N/A\' , \'barcode\': \'" + barcode + "\' }"));
+//			result = new PluginResult(PluginResult.Status.OK, barcode);
+//            SoundLoader.getInstance(ctx).playSuccess();
+//        }
         result.setKeepCallback(true);
         getDecode_callback.sendPluginResult(result);
     }
@@ -153,7 +171,7 @@ public void initialize(CordovaInterface cordova, CordovaWebView webView) {
     super.initialize(cordova, webView);
     this.ctx = cordova.getActivity().getApplicationContext();
 	SoundLoader.getInstance(ctx);
-    mScanner = Barcode2DWithSoft.getInstance();
+    mScanner = BarcodeFactory.getInstance().getBarcodeDecoder();
     boolean result = false;
     if(mScanner != null) {
         result = mScanner.open(ctx);
@@ -164,12 +182,12 @@ public void initialize(CordovaInterface cordova, CordovaWebView webView) {
 //                mScanner.setParameter(361, 0); // Image Capture Illumination
 
             // interleaved 2 of 5
-            mScanner.setParameter(6, 1);
-            mScanner.setParameter(22, 0);
-            mScanner.setParameter(23, 55);
-            mScanner.setParameter(402, 1);
+//            mScanner.setParameter(6, 1);
+//            mScanner.setParameter(22, 0);
+//            mScanner.setParameter(23, 55);
+//            mScanner.setParameter(402, 1);
 
-            mScanner.setScanCallback(ScanBack);
+            mScanner.setDecodeCallback(ScanBack);
         } else {
             Log.e(TAG, "Barcode initialization failure");
         }
@@ -178,42 +196,42 @@ public void initialize(CordovaInterface cordova, CordovaWebView webView) {
     Log.i(TAG, "Scanning device initialized");
 }
 
-public class InitScannerTask extends AsyncTask<String, Integer, Boolean> {
-    @Override
-    protected Boolean doInBackground(String... params) {
-        boolean result = false;
-        if(mScanner != null) {
-            result = mScanner.open(ctx);
-            Log.i(TAG,"open="+result);
-        }
-        return result;
-    }
-
-    @Override
-    protected void onPostExecute(Boolean result) {
-        super.onPostExecute(result);
-        if(result){
-//                mScanner.setParameter(324, 1);
-//                mScanner.setParameter(300, 0); // Snapshot Aiming
-//                mScanner.setParameter(361, 0); // Image Capture Illumination
-
-            // interleaved 2 of 5
-            mScanner.setParameter(6, 1);
-            mScanner.setParameter(22, 0);
-            mScanner.setParameter(23, 55);
-            mScanner.setParameter(402, 1);
-        } else {
-            Log.e(TAG, "Barcode initialization failure");
-        }
-    }
-
-    @Override
-    protected void onPreExecute() {
-        // TODO Auto-generated method stub
-        super.onPreExecute();
-    }
-
-}
+//public class InitScannerTask extends AsyncTask<String, Integer, Boolean> {
+//    @Override
+//    protected Boolean doInBackground(String... params) {
+//        boolean result = false;
+//        if(mScanner != null) {
+//            result = mScanner.open(ctx);
+//            Log.i(TAG,"open="+result);
+//        }
+//        return result;
+//    }
+//
+//    @Override
+//    protected void onPostExecute(Boolean result) {
+//        super.onPostExecute(result);
+//        if(result){
+////                mScanner.setParameter(324, 1);
+////                mScanner.setParameter(300, 0); // Snapshot Aiming
+////                mScanner.setParameter(361, 0); // Image Capture Illumination
+//
+//            // interleaved 2 of 5
+//            mScanner.setParameter(6, 1);
+//            mScanner.setParameter(22, 0);
+//            mScanner.setParameter(23, 55);
+//            mScanner.setParameter(402, 1);
+//        } else {
+//            Log.e(TAG, "Barcode initialization failure");
+//        }
+//    }
+//
+//    @Override
+//    protected void onPreExecute() {
+//        // TODO Auto-generated method stub
+//        super.onPreExecute();
+//    }
+//
+//}
 
 private void echo(String message, CallbackContext callbackContext) {
     if (message != null && message.length() > 0) {
