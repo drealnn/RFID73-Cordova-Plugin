@@ -6,7 +6,7 @@ repositories{
 }
 
 dependencies {
-    compile(name:'DeviceAPI_ver20231208_release', ext:'aar')
+    implementation(name:'DeviceAPI_ver20231208_release', ext:'aar')
 }
 
 android {
